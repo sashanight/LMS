@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
 from .models import *
+from django.utils import timezone
 
 
 @require_http_methods(["GET", "POST"])
@@ -13,11 +14,11 @@ def check_token(request):
         if request.method == "GET":
             access_token = AccessToken.objects.get(token=request.GET['token'])
 
-        if access_token.date_login < datetime.datetime.now() - datetime.timedelta(hours=12):
+        if access_token.date_login + datetime.timedelta(hours=12) < datetime.datetime.now(tz=timezone.utc):
             access_token.delete()
             return None
 
-        user_id = access_token.user_id
+        user_id = access_token.user.id
         return user_id
     except:
         pass

@@ -19,6 +19,11 @@ class User(models.Model):
     hometown = models.CharField(max_length=255, blank=True)
     person_info = models.TextField(max_length=2000, blank=True)
 
+    vk_link = models.URLField(blank=True) # TODO unique
+    facebook_link = models.URLField(blank=True)
+    linkedin_link = models.URLField(blank=True)
+    instagram_link = models.URLField(blank=True)
+
     verification_code = models.CharField(max_length=100, blank=False, default=uuid.uuid1)
 
     def set_password(self, raw_password):
@@ -71,14 +76,14 @@ class Student(User):
     learning_base = models.CharField(max_length=2, choices=LEARNING_BASES, blank=False)
 
 
-class LinkToProfile(models.Model):
+class LinkToProfile(models.Model): # TODO delete
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     link = models.URLField(max_length=100)
 
 
 class Course(models.Model):
     course_name = models.CharField(max_length=100, unique=True)
-    description = models.TextField(max_length=2000)
+    description = models.TextField(max_length=2000, blank=True)
     course_instructors = models.ManyToManyField(Teacher, related_name="instructors", blank=True)
     trusted_individuals = models.ManyToManyField(Student, related_name="trusted_individuals", blank=True)
     groups_of_course = models.ManyToManyField(Group, blank=True)
@@ -88,7 +93,7 @@ class CourseMaterial(models.Model):
     material_name = models.CharField(max_length=100, unique=True)
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     content = models.TextField(max_length=2000)
-    start_date = models.DateTimeField()
+    start_date = models.DateTimeField(default=datetime.datetime.now())
 
 
 class Task(models.Model):
