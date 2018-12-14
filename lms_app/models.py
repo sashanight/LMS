@@ -76,11 +76,6 @@ class Student(User):
     learning_base = models.CharField(max_length=2, choices=LEARNING_BASES, blank=False)
 
 
-class LinkToProfile(models.Model): # TODO delete
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    link = models.URLField(max_length=100)
-
-
 class Course(models.Model):
     course_name = models.CharField(max_length=100, unique=True)
     description = models.TextField(max_length=2000, blank=True)
@@ -90,17 +85,17 @@ class Course(models.Model):
 
 
 class CourseMaterial(models.Model):
-    material_name = models.CharField(max_length=100, unique=True)
+    material_name = models.CharField(max_length=100, unique=False)
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     content = models.TextField(max_length=2000)
     start_date = models.DateTimeField(default=datetime.datetime.now())
 
 
 class Task(models.Model):
-    task_name = models.CharField(max_length=200, unique=True)
+    task_name = models.CharField(max_length=200, unique=False)
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
-    start = models.DateTimeField()
-    end = models.DateTimeField()
+    start = models.DateTimeField(blank=True)
+    end = models.DateTimeField(blank=True)
     description = models.TextField(max_length=2000)
 
 

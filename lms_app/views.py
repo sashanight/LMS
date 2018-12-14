@@ -100,20 +100,31 @@ def get_profile(uid):
         return HttpResponseServerError()
 
 
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "POST"])
 @is_authenticated
+def my_profile_request(uid, request):
+    if request.method == "GET":
+        return get_my_profile(uid, request)
+    elif request.method == "POST":
+        return edit_my_profile(uid, request)
+
+
+#@require_http_methods(["GET"])
+#@is_authenticated
 def get_my_profile(uid, request):
     return get_profile(uid)
 
 
-@require_http_methods(["POST"])
-@is_authenticated
+#@require_http_methods(["POST"])
+#@is_authenticated
 def edit_my_profile(uid, request):
     try:
         user = User.objects.get(id=uid)
 
         const_fields = ['e_mail', 'fio']
-        editable_fields = ['phone_number', 'hometown', 'person_info', 'password']
+        editable_fields = ['phone_number', 'hometown', 'person_info', 'password', 'vk_link', 'facebook_link',
+                           'linkedin_link', 'instagram_link']
+        link_fields = ['vk_link', 'facebook_link', 'linkedin_link', 'instagram_link']
 
         for field in const_fields:
             if field in request.POST:
@@ -123,34 +134,27 @@ def edit_my_profile(uid, request):
         for key in request.POST.keys():
             if key not in editable_fields:
                 continue
-            if key == "links_to_profile":
-                for profile_link in request.POST[key]:
-                    if not link_to_profile_check(profile_link):
-                        return HttpResponse(status=400)
-
-                    profile_type = profile_link.split('.')[0]
-                    user.linktoprofile_set.filter(link__startswith=profile_type).delete()
-
-                    new_link = LinkToProfile()
-                    new_link.link = profile_link
-                    new_link.user = user
-                    new_link.save()
             elif key == 'phone_number':
                 new_number = request.POST['phone_number']
                 if phone_number_check(new_number):
-                    user['phone_number'] = new_number
+                    user.phone_number = new_number
                 else:
                     return HttpResponse(status=400)
             elif key == 'password':
                 if 'old_password' in request.POST:
                     if user.check_password(request.POST['old_password']):
-                        user.password = request.POST['password']
+                        user.set_password(request.POST['password'])
                     else:
                         return HttpResponse(status=400)
                 else:
                     return HttpResponse(status=400)
+            elif key in link_fields:
+                if link_to_profile_check(request.POST[key]):
+                    setattr(user, key, request.POST[key])
+                else:
+                    return HttpResponse(status=400)
             else:
-                user[key] = request.POST[key]
+                setattr(user, key, request.POST[key])
 
         user.save()
         return HttpResponse(status=200)
@@ -162,31 +166,31 @@ def edit_my_profile(uid, request):
 
 @require_http_methods(["GET"])
 @is_authenticated
-def get_user_profile(uid, request):
-    if 'used_id' not in request.POST and 'link_to_user' not in request.POST:
-        return HttpResponse(status=400)
-    else:
-        if 'used_id' in request.POST:
-            return get_profile(request)
+def get_user_profile_by_id(uid, request, user_id):
+    print(uid, user_id)
+    return get_profile(user_id)
+
+
+@require_http_methods(["GET"])
+@is_authenticated
+def get_user_profile_by_link(uid, request, link_type, link_text):
+    print(link_type, link_text)
+    try:
+        if link_type == "vk":
+            user_id = User.objects.get(vk_link="https://vk.com/"+link_text).id
+        elif link_type == "instagram":
+            user_id = User.objects.get(instagram_link="https://instagram.com/"+link_text).id
+        elif link_type == "facebook":
+            user_id = User.objects.get(facebook_link="https://facebook.com/"+link_text).id
+        elif link_type == "linkedin":
+            user_id = User.objects.get(linkedin_link="https://linkedin.com/"+link_text).id
         else:
-            try:
-                link = request.POST['link_to_user']
-                starts = ["https://vk.com/", "https://facebook.com/", "https://linkedin.com/", "https://instagram.com/"]
-                if link.startswith(starts[0]):
-                    user_id = User.objects.get(vk_link=link).user_id
-                elif link.startswith(starts[1]):
-                    user_id = User.objects.get(facebook_link=link).user_id
-                elif link.startswith(starts[2]):
-                    user_id = User.objects.get(linkedin_link=link).user_id
-                elif link.startswith(starts[3]):
-                    user_id = User.objects.get(instagram_link=link).user_id
-                else:
-                    return HttpResponse(status=400)
-            except ObjectDoesNotExist:
-                return HttpResponse(status=404)
-            except Exception:
-                return HttpResponseServerError()
-            return get_profile(user_id)
+            return HttpResponse(status=400)
+        return get_profile(user_id)
+    except ObjectDoesNotExist:
+        return HttpResponse(status=404)
+    except Exception:
+        return HttpResponseServerError()
 
 
 @require_http_methods(["GET"])
@@ -194,12 +198,25 @@ def get_user_profile(uid, request):
 def get_classmates(uid, request):
     try:
         student = Student.objects.get(id=uid)
-        group_id = student.group_id
-        classmates = Student.objects.filter(id=group_id)
-        serialized_obj = serializers.serialize('json', classmates)
-        obj_structure = json.loads(serialized_obj)
-        data = json.dumps(obj_structure[0])
-        return HttpResponse(data, status=200, content_type="application/json")
+        group = student.group
+        classmates = Student.objects.filter(group=group).exclude(id=uid)
+
+        # TODO - хз как сериализовать все поля класса (не только дочернего)
+        # #print(classmates)
+        # serialized_obj = serializers.serialize('json', list(classmates))
+        # obj_structure = json.loads(serialized_obj)
+        # obj_structure = [obj['fields'] for obj in obj_structure]
+        # #print(obj_structure)
+
+        data = []
+        field_to_answer = ['id', 'FIO', 'e_mail', 'vk_link', 'instagram_link', 'facebook_link',
+                           'linkedin_link']
+        for classmate in classmates:
+            classmate_obj = dict()
+            for field in field_to_answer:
+                classmate_obj[field] = getattr(classmate,field)
+            data.append(classmate_obj)
+        return HttpResponse(json.dumps(data), status=200, content_type="application/json")
     except ObjectDoesNotExist:
         return HttpResponse(status=404)
     except Exception:
@@ -213,18 +230,18 @@ def get_courses_list(uid, request):
         courses = None
         if Student.objects.filter(id=uid).exists():
             student = Student.objects.get(id=uid)
-            group_name = student.group_name
-            courses = Course.objects.filter(groups_of_course__group_name=group_name)
+            group = student.group
+            courses = Course.objects.filter(groups_of_course__in=[group])
             # TODO по group_id
 
-        elif Teacher.objects.filter(user_id=uid).exists():
+        elif Teacher.objects.filter(id=uid).exists():
             teacher = Teacher.objects.get(id=uid)
-            courses = Course.objects.filter(course_instructors__FIO=teacher.fio)
+            courses = Course.objects.filter(course_instructors__FIO=teacher.FIO)
             # TODO по user_id
 
         courses_list = []
         for course in courses:
-            courses_list.append(course.course_name)
+            courses_list.append({"id": course.id, "course_name" : course.course_name})
         data = json.dumps({"list_of_courses": courses_list})
         return HttpResponse(data, status=200, content_type="application/json")
     except ObjectDoesNotExist:
@@ -235,47 +252,64 @@ def get_courses_list(uid, request):
 
 @require_http_methods(["GET"])
 @is_authenticated
-def get_course_info(uid, request):
-    if 'course_name' in request.POST:
-        try:
-            course = Course.objects.get(course_name=request.POST["course_name"])
-            serialized_obj = serializers.serialize('json', [course, ])
-            obj_structure = json.loads(serialized_obj)
+def get_course_info(uid, request, course_name):
+    try:
+        print("HERE")
+        course = Course.objects.get(course_name=course_name)
+        serialized_obj = serializers.serialize('json', [course, ])
+        obj_structure = json.loads(serialized_obj)
 
-            materials = CourseMaterial.objects.filter(course=course)
-            serialized_obj2 = serializers.serialize('json', materials)
-            obj_structure2 = json.loads(serialized_obj2)
+        materials = CourseMaterial.objects.filter(course=course)
+        serialized_obj2 = serializers.serialize('json', materials)
+        obj_structure2 = json.loads(serialized_obj2)
 
-            tasks = Task.objects.filter(course=course)
-            serialized_obj3 = serializers.serialize('json', tasks)
-            obj_structure3 = json.loads(serialized_obj3)
+        tasks = Task.objects.filter(course=course)
+        serialized_obj3 = serializers.serialize('json', tasks)
+        obj_structure3 = json.loads(serialized_obj3)
 
-            data = {'course_info': obj_structure[0], 'materials_info': obj_structure2[0],
-                    'tasks_info': obj_structure3[0]}
-            return HttpResponse(json.dumps(data), status=200, content_type="application/json")
-        except ObjectDoesNotExist:
-            return HttpResponse(status=404)
-        except Exception:
-            return HttpResponseServerError()
-    else:
-        return HttpResponse(status=400)
+        course_info = dict()
+        course_info["course_id"] = course.id
+        course_info["course_name"] = course.course_name
+        course_info["description"] = course.description
+        if course.trusted_individuals.count():
+            print(course.trusted_individuals)
+            print("FF")
+            course_info["trusted_individuals"] = [{"id": student.id, "FIO": student.FIO}
+                                                  for student in course.trusted_individuals.all()]
+        else:
+            course_info["trusted_individuals"] = []
+        print("HERE##")
+        course_info["course_materials"] = [{"id": material.id, "material_name": material.material_name,
+                                            "content": material.content,
+                                            "start_date": material.start_date.strftime("%Y-%m-%d %H:%M:%S")}
+                                           for material in materials]
+        course_info["course_tasks"] = [{"id": task.id, "task_name": task.task_name, "description": task.description,
+                                        "start": task.start.strftime("%Y-%m-%d %H:%M:%S"),
+                                        "end": task.end.strftime("%Y-%m-%d %H:%M:%S")} for task in tasks]
+        print(course_info)
+
+        return HttpResponse(json.dumps(course_info), status=200, content_type="application/json")
+    except ObjectDoesNotExist:
+        return HttpResponse(status=404)
+    except Exception:
+        return HttpResponseServerError()
 
 
 @require_http_methods(["POST"])
 @is_authenticated
-def manage_course_materials(uid, request):
+def manage_course_materials(uid, request, course_name):
     try:
         user = User.objects.get(id=uid)
-        if "course_name" in request.POST and "course_material_body" in request.POST and "course_material_name" \
-                in request.POST:
-            course = Course.objects.get(course_name=request.POST['course_name'])
-            if course.course_instructors.filter(fio=user.fio).exists() or course.trusted_individuals.filter(
-                    fio=user.fio):
-
-                if CourseMaterial.objects.filter(material_name=request.POST["course_material_name"]).exists():
-                    material = CourseMaterial.objects.get(material_name=request.POST["course_material_name"])
-                    if request.POST["course_material_body"]:
+        if "course_material_name" in request.POST:
+            course = Course.objects.get(course_name=course_name)
+            if course.course_instructors.filter(id=user.id).exists() or course.trusted_individuals.filter(id=user.id):
+                if CourseMaterial.objects.filter(material_name=request.POST["course_material_name"]).filter(
+                        course=course).exists():
+                    material = CourseMaterial.objects.get(course=course,
+                                                          material_name=request.POST["course_material_name"])
+                    if "course_material_body" in request.POST:
                         material.content = request.POST["course_material_body"]
+                        material.save()
                     else:
                         material.delete()
                 else:
@@ -298,19 +332,20 @@ def manage_course_materials(uid, request):
 
 @require_http_methods(["POST"])
 @is_authenticated
-def add_trusted_individuals(uid, request):
+def add_trusted_individuals(uid, request, course_name):
     try:
         teacher = User.objects.get(id=uid)
-        if "course_name" in request.POST and "trusted_individual_id" in request.POST:
-            course = Course.objects.get(course_name=request.POST['course_name'])
+        if "trusted_individual_id" in request.POST:
+            course = Course.objects.get(course_name=course_name)
             student = Student.objects.get(id=request.POST["trusted_individual_id"])
             if course.groups_of_course.filter(id=student.group.id).exists():
                 pass
             else:
                 return HttpResponse(status=403)
-
-            if course.course_instructors.filter(fio=teacher.fio).exists():
+            if course.course_instructors.filter(id=teacher.id).exists():
                 course.trusted_individuals.add(student)
+                course.save()
+                return HttpResponse(status=200)
             else:
                 return HttpResponse(status=403)
         else:
@@ -323,26 +358,29 @@ def add_trusted_individuals(uid, request):
 
 @require_http_methods(["POST"])
 @is_authenticated
-def manage_course_task(uid, request):
+def manage_course_task(uid, request, course_name):
     try:
-        user = User.objects.get(user_id=uid)
-        if "course_name" in request.POST and "task_body" in request.POST and "task_name" in request.POST:
-            course = Course.objects.get(course_name=request.POST['course_name'])
-            if course.course_instructors.filter(fio=user.fio).exists():
-                if Task.objects.filter(task_name=request.POST["task_name"]).exists():
-                    task = Task.objects.get(material_name=request.POST["task_name"])
-                    if request.POST["task_body"]:
-                        task.content = request.POST["task_body"]
+        user = User.objects.get(id=uid)
+        if "task_name" in request.POST:
+            course = Course.objects.get(course_name=course_name)
+            if course.course_instructors.filter(id=user.id).exists():
+                if Task.objects.filter(course=course).filter(task_name=request.POST["task_name"]).exists():
+                    task = Task.objects.get(task_name=request.POST["task_name"], course=course)
+                    if "task_body" in request.POST:
+                        task.description = request.POST["task_body"]
                         if "task_start" in request.POST:
                             task.start = request.POST["task_start"]
                         if "task_end" in request.POST:
                             task.end = request.POST["task_end"]
+                        task.save()
                     else:
                         task.delete()
                 else:
                     new_task = Task()
                     new_task.course = course
                     new_task.task_name = request.POST["task_name"]
+                    if "task_body" not in request.POST:
+                        return HttpResponse(status=400)
                     new_task.description = request.POST["task_body"]
                     if "task_start" in request.POST:
                         new_task.start = request.POST["task_start"]
@@ -362,18 +400,19 @@ def manage_course_task(uid, request):
 
 @require_http_methods(["POST"])
 @is_authenticated
-def upload_task_solution(uid, request):
+def upload_task_solution(uid, request, course_name, task_id):
     try:
         user = User.objects.get(id=uid)
-        group_id = user.student.group.id
-        if "course_name" in request.POST and "task_id" in request.POST and "solution_body" in request.POST:
-            course = Course.objects.get(course_name=request.POST['course_name'])
-            task = Task.objects.get(id=request.POST['task_id'])
-            if course.groups_of_course.filter(id=group_id).exists():
+        group = user.student.group
+        if "solution_body" in request.POST:
+            course = Course.objects.get(course_name=course_name)
+            task = Task.objects.get(id=task_id)
+            if course.groups_of_course.filter(id=group.id).exists():
                 if TaskSolution.objects.filter(task=task, user=user).exists():
                     task_solution = TaskSolution.objects.get(task=task,user=user)
                     if request.POST["solution_body"]:
                         task_solution.solution = request.POST["solution_body"]
+                        task_solution.save()
                     else:
                         task_solution.delete()
                 else:
@@ -395,29 +434,29 @@ def upload_task_solution(uid, request):
 
 @require_http_methods(["GET"])
 @is_authenticated
-def watch_task_solution(uid, request):
+def watch_task_solution(uid, request, course_name, task_id):
     try:
         user = User.objects.get(id=uid)
-        if "task_id" in request.GET:
-            task = Task.objects.get(id=request.POST['task_id'])
-            course = task.course
-            groups = course.groups_of_course
-            answer_dict = dict()
-            if course.course_instructors.filter(id=user.id).exists():
-                for group in groups:
-                    solutions_dict = dict()
-                    for user in User.objects.filter(Group=group):
-                        try:
-                            user_solution = TaskSolution.objects.get(user=user,task=task)
-                            solutions_dict[user.fio] = {"Sent": "Yes", "Solution": user_solution.solution}
-                        except:
-                            solutions_dict[user.fio] = {"Sent": "No", "Solution": {}}
-                    answer_dict[group.group_name] = solutions_dict
-                return HttpResponse(json.dumps(answer_dict), status=200, content_type="application/json")
-            else:
-                return HttpResponse(status=403)
+        task = Task.objects.get(id=task_id)
+        course = task.course
+        groups = course.groups_of_course.all()
+        answer_dict = dict()
+        if course.course_instructors.filter(id=user.id).exists():
+            print("dd")
+            for group in groups:
+                solutions_dict = dict()
+                for student in Student.objects.filter(group=group):
+                    print(student.FIO)
+                    try:
+                        student_solution = TaskSolution.objects.get(user=student,task=task)
+                        print(student_solution.id, "sid")
+                        solutions_dict[student.FIO] = {"Sent": "Yes", "Solution": student_solution.solution}
+                    except:
+                        solutions_dict[student.FIO] = {"Sent": "No", "Solution": {}}
+                answer_dict[group.group_name] = solutions_dict
+            return HttpResponse(json.dumps(answer_dict), status=200, content_type="application/json")
         else:
-            return HttpResponse(status=400)
+            return HttpResponse(status=403)
     except ObjectDoesNotExist:
         return HttpResponse(status=404)
     except Exception:

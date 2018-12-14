@@ -26,10 +26,10 @@ def check_token(request):
 
 
 def is_authenticated(fn):
-    def decorator(request):
+    def decorator(request, *args, **kwargs):
         uid = check_token(request)
         if uid is not None:
-            return fn(uid, request)
+            return fn(uid, request, *args, **kwargs)
         else:
             return HttpResponse(status=401)
     return decorator

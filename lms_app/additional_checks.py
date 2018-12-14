@@ -3,7 +3,7 @@ import datetime
 
 
 def phone_number_check(number):
-    if number.startswith("+7") and len(number) == 11 and number[1:].isdigit():
+    if number.startswith("+7") and len(number) == 12 and number[1:].isdigit():
         return True
     return False
 
