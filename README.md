@@ -2,8 +2,9 @@
 
 [![Build Status][travis-badge]][travis-url]
 [![Coverage][coverage-image]][coverage-url]
+[![Code Health](https://landscape.io/github/landscapeio/pylint-django/master/landscape.svg?style=flat)](https://landscape.io/github/landscapeio/pylint-django/master)
 
-Homework for the course Principles, Practices, and Patterns of Software Design
+Homework for the Principles, Practices, and Patterns of Software Design course
 
 LMS (learning management system) - The foundation of the learning management system is used to develop, manage, 
 and distribute online learning materials with sharing.
