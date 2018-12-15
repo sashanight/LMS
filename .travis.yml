@@ -15,4 +15,4 @@ script:
 #  - ./setup.py test
   - python manage.py test
 after_success:
-  - codecov
+  - codecov -t "40ef43b4-b7a7-4f29-ad9c-ef03a595052d"
