@@ -13,6 +13,6 @@ install:
   - mysql -e 'create database test;' -u root
 script:
 #  - ./setup.py test
-  - python manage.py test
+  - python manage.py test --cov=./lms_app
 after_success:
   - codecov -t "40ef43b4-b7a7-4f29-ad9c-ef03a595052d"
