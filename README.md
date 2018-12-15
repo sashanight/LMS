@@ -2,7 +2,7 @@
 
 [![Build Status][travis-badge]][travis-url]
 [![Coverage][coverage-image]][coverage-url]
-[![Code Health](https://landscape.io/github/landscapeio/pylint-django/master/landscape.svg?style=flat)](https://landscape.io/github/landscapeio/pylint-django/master)
+[![Code Health](https://landscape.io/github/sashanight/LMS/master/landscape.svg?style=flat)](https://landscape.io/github/sashanight/LMS/master)
 
 Homework for the Principles, Practices, and Patterns of Software Design course
 
