@@ -1,0 +1,17 @@
+language: python
+python:
+  - 3.6
+services:
+  - mysql
+env:
+  - DJANGO=2.1 DB=mysql
+#before_install:
+#  - chmod +x ./setup.py
+install:
+  - pip install codecov
+  - mysql -e 'create database test;' -u root
+script:
+#  - ./setup.py test
+  - python manage.py test
+after_success:
+  - codecov
