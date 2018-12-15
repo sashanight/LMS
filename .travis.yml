@@ -11,9 +11,11 @@ install:
   - pip install django==$DJANGO --quiet
   - pip install django-nose
   - pip install codecov
+  - pip install pylint-django
   - mysql -e 'create database test;' -u root
 script:
 #  - ./setup.py test
   - python manage.py test
 after_success:
   - codecov 
+  - pylint --load-plugins pylint_django ./lms_app
