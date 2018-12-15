@@ -21,8 +21,6 @@ def auth(request):
         password = request.POST['password']
         try:
             user = User.objects.get(e_mail=email)
-            print(user.password)
-            print(password)
             if user.check_password(password):
                 access_token = AccessToken()
                 access_token.user = user
@@ -167,14 +165,12 @@ def edit_my_profile(uid, request):
 @require_http_methods(["GET"])
 @is_authenticated
 def get_user_profile_by_id(uid, request, user_id):
-    print(uid, user_id)
     return get_profile(user_id)
 
 
 @require_http_methods(["GET"])
 @is_authenticated
 def get_user_profile_by_link(uid, request, link_type, link_text):
-    print(link_type, link_text)
     try:
         if link_type == "vk":
             user_id = User.objects.get(vk_link="https://vk.com/"+link_text).id
@@ -254,7 +250,6 @@ def get_courses_list(uid, request):
 @is_authenticated
 def get_course_info(uid, request, course_name):
     try:
-        print("HERE")
         course = Course.objects.get(course_name=course_name)
         serialized_obj = serializers.serialize('json', [course, ])
         obj_structure = json.loads(serialized_obj)
@@ -272,13 +267,10 @@ def get_course_info(uid, request, course_name):
         course_info["course_name"] = course.course_name
         course_info["description"] = course.description
         if course.trusted_individuals.count():
-            print(course.trusted_individuals)
-            print("FF")
             course_info["trusted_individuals"] = [{"id": student.id, "FIO": student.FIO}
                                                   for student in course.trusted_individuals.all()]
         else:
             course_info["trusted_individuals"] = []
-        print("HERE##")
         course_info["course_materials"] = [{"id": material.id, "material_name": material.material_name,
                                             "content": material.content,
                                             "start_date": material.start_date.strftime("%Y-%m-%d %H:%M:%S")}
@@ -286,7 +278,6 @@ def get_course_info(uid, request, course_name):
         course_info["course_tasks"] = [{"id": task.id, "task_name": task.task_name, "description": task.description,
                                         "start": task.start.strftime("%Y-%m-%d %H:%M:%S"),
                                         "end": task.end.strftime("%Y-%m-%d %H:%M:%S")} for task in tasks]
-        print(course_info)
 
         return HttpResponse(json.dumps(course_info), status=200, content_type="application/json")
     except ObjectDoesNotExist:
@@ -442,14 +433,11 @@ def watch_task_solution(uid, request, course_name, task_id):
         groups = course.groups_of_course.all()
         answer_dict = dict()
         if course.course_instructors.filter(id=user.id).exists():
-            print("dd")
             for group in groups:
                 solutions_dict = dict()
                 for student in Student.objects.filter(group=group):
-                    print(student.FIO)
                     try:
                         student_solution = TaskSolution.objects.get(user=student,task=task)
-                        print(student_solution.id, "sid")
                         solutions_dict[student.FIO] = {"Sent": "Yes", "Solution": student_solution.solution}
                     except:
                         solutions_dict[student.FIO] = {"Sent": "No", "Solution": {}}
