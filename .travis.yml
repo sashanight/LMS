@@ -9,10 +9,11 @@ env:
 #  - chmod +x ./setup.py
 install:
   - pip install django==$DJANGO --quiet
+  - pip install django-nose
   - pip install codecov
   - mysql -e 'create database test;' -u root
 script:
 #  - ./setup.py test
   - python manage.py test
 after_success:
-  - codecov -t 8fb99e43-dee0-4572-b5b4-e0aa8d1100df
+  - codecov 
