@@ -10,6 +10,10 @@ and distribute online learning materials with sharing.
 
 MIPT Course on Software Design, Fall 2018.
 
+python manage.py lms_app.tests - запуск тестов
+python manage.py populate_db - инициализация БД
+python manage.py runserver - запуск сервера
+
 ## Copyright
 
 Copyright © 2018 Alexander Knyazev. See [license] for details.
