@@ -1,8 +1,6 @@
 language: python
 python:
   - 3.6
-services:
-  - mysql
 env:
   - DJANGO=2.1 DB=mysql
 #before_install:
@@ -12,10 +10,9 @@ install:
   - pip install django-nose
   - pip install codecov
   - pip install pylint-django
-  - mysql -e 'create database test;' -u root
 script:
 #  - ./setup.py test
   - python manage.py test
 after_success:
-  - codecov 
+  - codecov
   - pylint --load-plugins pylint_django ./lms_app
